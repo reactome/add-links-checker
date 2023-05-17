@@ -1,3 +1,5 @@
+package org.reactome;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import org.gk.model.GKInstance;
@@ -48,20 +50,13 @@ public class AddLinksChecker {
             GKInstance previousReferenceDatabase = previousNameToReferenceDatabase.get(previousReferenceDatabaseName);
 
             if (currentReferenceDatabase == null) {
-                referenceDatabaseComparisonResults.addMissingReferenceDatabase(
-                    previousReferenceDatabaseName
-                );
+                referenceDatabaseComparisonResults.addMissingReferenceDatabase(previousReferenceDatabaseName);
             } else if (referrerCount(previousReferenceDatabase) > referrerCount(currentReferenceDatabase)) {
-                referenceDatabaseComparisonResults.addReducedCountReferenceDatabase(currentReferenceDatabase, previousReferenceDatabase);
+                referenceDatabaseComparisonResults.addReducedCountReferenceDatabase(
+                    currentReferenceDatabase, previousReferenceDatabase);
             } else {
                 referenceDatabaseComparisonResults.addProperCountReferenceDatabase(
-                    String.format(
-                        "%s - Current: %s; Previous %s",
-                        getNameWithDbId(currentReferenceDatabase),
-                        referrerCount(currentReferenceDatabase),
-                        referrerCount(previousReferenceDatabase)
-                    )
-                );
+                    currentReferenceDatabase,previousReferenceDatabase);
             }
         }
         return referenceDatabaseComparisonResults;
@@ -125,9 +120,17 @@ public class AddLinksChecker {
 
         String host = configProperties.getProperty(configPrefix + "DbHost", "localhost");
         String dbName = configProperties.getProperty(configPrefix + "DbName", defaultDbName);
-        
-	String user = takeFirstNotNull(configProperties.getProperty(configPrefix + "DbUser"),configProperties.getProperty("dbUser"), "root");
-        String password = takeFirstNotNull(configProperties.getProperty(configPrefix + "DbPass"),configProperties.getProperty("dbPwd"), "root");
+
+        String user = takeFirstNotNull(
+            configProperties.getProperty(configPrefix + "DbUser"),
+            configProperties.getProperty("dbUser"),
+            "root"
+        );
+        String password = takeFirstNotNull(
+            configProperties.getProperty(configPrefix + "DbPass"),
+            configProperties.getProperty("dbPwd"),
+            "root"
+        );
 
         return new MySQLAdaptor(host, dbName, user, password);
     }
@@ -139,7 +142,7 @@ public class AddLinksChecker {
     }
 
     private static String takeFirstNotNull(String ...values) {
-        values.stream().filter(value -> value != null).findFirst().orElse(null);
+        return Arrays.stream(values).filter(Objects::nonNull).findFirst().orElse(null);
     }
 
     public class ReferenceDatabaseComparisonResults {
@@ -155,12 +158,63 @@ public class AddLinksChecker {
 
         void addMissingReferenceDatabase(String missingReferenceDatabase) {
             this.missingReferenceDatabaseMessages.add(
-                missingReferenceDatabase + " is missing in the current database"
+                "ERROR: " + missingReferenceDatabase + " is missing in the current database"
             );
         }
 
-        void addReducedCountReferenceDatabase(GKInstance currentReferenceDatabase, GKInstance previousRef) {
+        void addReducedCountReferenceDatabase(
+            GKInstance currentReferenceDatabase, GKInstance previousReferenceDatabase) throws Exception {
 
+            this.reducedCountReferenceDatabaseMessages.add(
+                String.format(
+                    "WARN: %s has a lower referrer count than previously: %s (current) vs %s (previous)",
+                    getNameWithDbId(currentReferenceDatabase),
+                    referrerCount(currentReferenceDatabase),
+                    referrerCount(previousReferenceDatabase)
+                )
+            );
+        }
+
+        void addProperCountReferenceDatabase(
+            GKInstance currentReferenceDatabase, GKInstance previousReferenceDatabase) throws Exception {
+            this.properCountReferenceDatabaseMessages.add(
+                String.format(
+                    "%s - Current: %s; Previous %s",
+                    getNameWithDbId(currentReferenceDatabase),
+                    referrerCount(currentReferenceDatabase),
+                    referrerCount(previousReferenceDatabase)
+                )
+            );
+        }
+
+        int referrerCount(GKInstance referenceDatabase) throws Exception {
+            return referenceDatabase.getReferers(ReactomeJavaConstants.referenceDatabase).size();
+        }
+
+        String getReport() {
+            StringBuilder reportBuilder = new StringBuilder();
+
+            reportBuilder.append(addReportSection(
+                "Missing Reference Databases:", this.missingReferenceDatabaseMessages));
+            reportBuilder.append(addReportSection(
+                "Reduced Count Reference Databases:", this.reducedCountReferenceDatabaseMessages));
+            reportBuilder.append(addReportSection(
+                "Proper Count Reference Databases:", this.properCountReferenceDatabaseMessages));
+
+            return reportBuilder.toString();
+        }
+
+        String addReportSection(String sectionHeader, List<String> messages) {
+            StringBuilder reportSectionBuilder = new StringBuilder();
+            reportSectionBuilder.append(sectionHeader);
+            reportSectionBuilder.append(System.lineSeparator());
+            reportSectionBuilder.append(System.lineSeparator());
+            for (String message : messages) {
+                reportSectionBuilder.append(message);
+                reportSectionBuilder.append(System.lineSeparator());
+            }
+            reportSectionBuilder.append(System.lineSeparator());
+            return reportSectionBuilder.toString();
         }
     }
 }
