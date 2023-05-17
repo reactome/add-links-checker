@@ -125,8 +125,9 @@ public class AddLinksChecker {
 
         String host = configProperties.getProperty(configPrefix + "DbHost", "localhost");
         String dbName = configProperties.getProperty(configPrefix + "DbName", defaultDbName);
-        String user = configProperties.getProperty(configPrefix + "DbUser", "root");
-        String password = configProperties.getProperty(configPrefix + "DbPass", "root");
+        
+	String user = takeFirstNotNull(configProperties.getProperty(configPrefix + "DbUser"),configProperties.getProperty("dbUser"), "root");
+        String password = takeFirstNotNull(configProperties.getProperty(configPrefix + "DbPass"),configProperties.getProperty("dbPwd"), "root");
 
         return new MySQLAdaptor(host, dbName, user, password);
     }
@@ -135,6 +136,10 @@ public class AddLinksChecker {
         Properties configProperties = new Properties();
         configProperties.load(AddLinksChecker.class.getClassLoader().getResourceAsStream("config.properties"));
         return configProperties;
+    }
+
+    private static String takeFirstNotNull(String ...values) {
+        values.stream().filter(value -> value != null).findFirst().orElse(null);
     }
 
     public class ReferenceDatabaseComparisonResults {
