@@ -65,7 +65,8 @@ public class AddLinksChecker {
     private static Map<String, GKInstance> getReferenceDatabaseNameToInstance(MySQLAdaptor dba) throws Exception {
         return getReferenceDatabases(dba).stream().collect(Collectors.toMap(
             AddLinksChecker::getLongestName,
-            referenceDatabase -> referenceDatabase
+            referenceDatabase -> referenceDatabase,
+            (name1, name2) -> name1
         ));
     }
 
